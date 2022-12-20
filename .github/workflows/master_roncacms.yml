@@ -1,0 +1,51 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy container app to Azure Web App - roncacms
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Log in to registry
+      uses: docker/login-action@v1
+      with:
+        registry: https://roncacmsacr.azurecr.io/
+        username: ${{ secrets.AzureAppService_ContainerUsername_906177db096a4bda84ac998db301d7e6 }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_6f61dc6af1f54a978dfd54c76da58981 }}
+
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: roncacmsacr.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_906177db096a4bda84ac998db301d7e6 }}/roncacms83e9:${{ github.sha }}
+        file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'roncacms'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_b3fbe848023548af84426e019b2ad313 }}
+        images: 'roncacmsacr.azurecr.io/${{ secrets.AzureAppService_ContainerUsername_906177db096a4bda84ac998db301d7e6 }}/roncacms83e9:${{ github.sha }}'
